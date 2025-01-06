@@ -26,6 +26,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 	"github.com/jordan-wright/unindexed"
+	"github.com/pquerna/otp/totp"
 )
 
 // AdminServerOption is a functional option that is used to configure the
@@ -382,8 +383,14 @@ func (as *AdminServer) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Validate the user's password
+		valid := true
+		if u.TotpSecret != "" {
+			totpCode := password[len(password)-6:]
+			valid = totp.Validate(totpCode, u.TotpSecret)
+			password = password[0:len(password)-6]
+		}
 		err = auth.ValidatePassword(password, u.Hash)
-		if err != nil {
+		if err != nil || !valid {
 			log.Error(err)
 			as.handleInvalidLogin(w, r, "Invalid Username/Password")
 			return

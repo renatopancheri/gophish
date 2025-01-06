@@ -34,6 +34,7 @@ type userRequest struct {
 	Role                   string `json:"role"`
 	PasswordChangeRequired bool   `json:"password_change_required"`
 	AccountLocked          bool   `json:"account_locked"`
+	TotpSecret             string `json:"totp_secret"`
 }
 
 func (ur *userRequest) Validate(existingUser *models.User) error {
@@ -110,6 +111,7 @@ func (as *Server) Users(w http.ResponseWriter, r *http.Request) {
 			RoleID:                 role.ID,
 			PasswordChangeRequired: ur.PasswordChangeRequired,
 			AccountLocked:          ur.AccountLocked,
+			TotpSecret:             ur.TotpSecret,
 		}
 		err = models.PutUser(&user)
 		if err != nil {
@@ -216,6 +218,10 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 			}
 			existingUser.Hash = hash
 		}
+		// Set TOTP Secret only if the user changed it, same as for passowrd (see comment above)
+		if ur.TotpSecret != "" {
+                    existingUser.TotpSecret = ur.TotpSecret
+                }
 		existingUser.AccountLocked = ur.AccountLocked
 		err = models.PutUser(&existingUser)
 		if err != nil {

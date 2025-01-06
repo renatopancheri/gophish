@@ -12,7 +12,8 @@ const save = (id) => {
         password: $("#password").val(),
         role: $("#role").val(),
         password_change_required: $("#force_password_change_checkbox").prop('checked'),
-        account_locked: $("#account_locked_checkbox").prop('checked')
+        account_locked: $("#account_locked_checkbox").prop('checked'),
+	totp_secret: $("#totp_secret").val()
     }
     // Submit the user
     if (id != -1) {
@@ -57,6 +58,8 @@ const dismiss = () => {
 
 const edit = (id) => {
     $("#username").attr("disabled", false);
+    $("#totp_enabled").prop("checked", false);
+    genqrcode()
     $("#modalSubmit").unbind('click').click(() => {
         save(id)
     })
@@ -230,6 +233,59 @@ const load = () => {
         })
 }
 
+const genqrcode = () => {
+    let checkBox = document.getElementById("totp_enabled");
+    if (checkBox.checked == true){
+        var userText = document.getElementById("username").value
+	if (userText = '') {
+	    userText = 'user'
+	}
+	//console.log(document.getElementById("username").value)
+        const base = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567" //a-z, 2-7
+        const array = new Int32Array(1)
+        window.crypto.getRandomValues(array)
+        const i = array[0]
+        let result =
+            base[i >>> 47 & 0x1f] +
+            base[i >>> 42 & 0x1f] +
+            base[i >>> 37 & 0x1f] +
+            base[i >>> 32 & 0x1f] +
+            base[i >>> 27 & 0x1f] +
+            base[i >>> 22 & 0x1f] +
+            base[i >>> 17 & 0x1f] +
+            base[i >>> 12 & 0x1f] +
+            base[i >>> 7 & 0x1f] +
+            base[i >>> 2 & 0x1f]
+	document.getElementById("totp_secret").value = result
+        QrCreator.render({
+            text: 'otpauth://totp/Gophish:' + document.getElementById("username").value + '?secret=' + result,
+            radius: 0.5, // 0.0 to 0.5
+            ecLevel: 'H', // L, M, Q, H
+            fill: '#000000', // foreground color
+            background: null, // color or null for transparent
+            size: 192 // in pixels
+        }, document.querySelector('#qr-code'))
+        let qrCanvas = document.getElementById("qr-code").children[0]
+	download = function(){
+            let link = document.createElement('a');
+            link.download = document.getElementById("username").value + '-gophish.png';
+            link.href = qrCanvas.toDataURL()
+            link.click();
+	}
+        qrCanvas.onclick = download
+    }
+    else {
+        document.getElementById("qr-code").innerHTML = "";
+	document.getElementById("totp_secret").value = ""
+    }
+}
+
+//var download = function(){
+//  var link = document.createElement('a');
+//  link.download = 'filename.png';
+//  link.href = document.getElementById("qr-code").children[0].toDataURL()
+//  link.click();
+//}
 $(document).ready(function () {
     load()
     // Setup the event listeners
@@ -262,5 +318,8 @@ $(document).ready(function () {
     })
     $("#userTable").on('click', '.impersonate_button', function (e) {
         impersonate($(this).attr('data-user-id'))
+    })
+    $("#totp_enabled").on('click', function () {
+        genqrcode()
     })
 });

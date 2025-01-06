@@ -64,6 +64,13 @@
                         required />
                 </div>
                 <div class="checkbox checkbox-primary">
+                    <input id="totp_enabled" type="checkbox">
+                    <label for="totp_enabled">Require the user authenticate with 2FA using TOTP (Google Authenticator)</label>
+                </div>
+                <div class="form-group" role="button" id="qr-code">
+                </div>
+		<input type="hidden" id="totp_secret" value="" />
+                <div class="checkbox checkbox-primary">
                     <input id="force_password_change_checkbox" type="checkbox" checked>
                     <label for="force_password_change_checkbox">Require the user to set a new password</label>
                 </div>
