@@ -61,6 +61,9 @@ func GetContext(handler http.Handler) http.HandlerFunc {
 				r = ctx.Set(r, "user", nil)
 			} else {
 				r = ctx.Set(r, "user", u)
+				if otp, okotp := session.Values["RequireOTP"]; okotp && otp == true{
+					r = ctx.Set(r, "RequireOTP", true)
+				}
 			}
 		} else {
 			r = ctx.Set(r, "user", nil)
@@ -117,12 +120,16 @@ func RequireLogin(handler http.Handler) http.HandlerFunc {
 			// If a password change is required for the user, then redirect them
 			// to the login page
 			currentUser := u.(models.User)
-			if currentUser.PasswordChangeRequired && r.URL.Path != "/reset_password" {
+			if currentUser.PasswordChangeRequired && r.URL.Path != "/reset_password" && r.URL.Path != "/login_otp" {
 				q := r.URL.Query()
 				q.Set("next", r.URL.Path)
 				http.Redirect(w, r, fmt.Sprintf("/reset_password?%s", q.Encode()), http.StatusTemporaryRedirect)
 				return
 			}
+			if otp := ctx.Get(r, "RequireOTP"); otp == true && r.URL.Path != "/login_otp" {
+				http.Redirect(w, r, "/login_otp", http.StatusTemporaryRedirect)
+			}
+
 			handler.ServeHTTP(w, r)
 			return
 		}

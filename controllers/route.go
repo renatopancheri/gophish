@@ -127,6 +127,7 @@ func (as *AdminServer) registerRoutes() {
 	router.HandleFunc("/", mid.Use(as.Base, mid.RequireLogin))
 	router.HandleFunc("/login", mid.Use(as.Login, as.limiter.Limit))
 	router.HandleFunc("/logout", mid.Use(as.Logout, mid.RequireLogin))
+	router.HandleFunc("/login_otp", mid.Use(as.LoginOTP, mid.RequireLogin))
 	router.HandleFunc("/reset_password", mid.Use(as.ResetPassword, mid.RequireLogin))
 	router.HandleFunc("/campaigns", mid.Use(as.Campaigns, mid.RequireLogin))
 	router.HandleFunc("/campaigns/{id:[0-9]+}", mid.Use(as.CampaignID, mid.RequireLogin))
@@ -383,14 +384,8 @@ func (as *AdminServer) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Validate the user's password
-		valid := true
-		if u.TotpSecret != "" {
-			totpCode := password[len(password)-6:]
-			valid = totp.Validate(totpCode, u.TotpSecret)
-			password = password[0:len(password)-6]
-		}
 		err = auth.ValidatePassword(password, u.Hash)
-		if err != nil || !valid {
+		if err != nil { //|| !valid {
 			log.Error(err)
 			as.handleInvalidLogin(w, r, "Invalid Username/Password")
 			return
@@ -404,12 +399,49 @@ func (as *AdminServer) Login(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Error(err)
 		}
+		// check if users has to type in OTP
+		if u.TotpSecret != "" {
+			session.Values["RequireOTP"] = true
+		}
 		// If we've logged in, save the session and redirect to the dashboard
 		session.Values["id"] = u.Id
 		session.Save(r, w)
 		as.nextOrIndex(w, r)
 	}
 }
+
+// Require OTP after initial login
+func (as *AdminServer) LoginOTP(w  http.ResponseWriter, r *http.Request) {
+	session := ctx.Get(r, "session").(*sessions.Session)
+	switch {
+	case r.Method == "GET":
+		params := newTemplateParams(r)
+		params.Title = "Login OTP"
+		templates := template.New("template")
+		_, err := templates.ParseFiles("templates/login_otp.html")
+		if err != nil {
+			log.Error(err)
+		}
+		template.Must(templates, err).ExecuteTemplate(w, "base", params)
+	case r.Method == "POST":
+		totpCode := r.FormValue("otp")
+	        u := ctx.Get(r, "user").(models.User)
+		valid := totp.Validate(totpCode, u.TotpSecret)
+		if valid == true {
+			session.Values["RequireOTP"] = false
+			session.Save(r, w)
+		        as.nextOrIndex(w, r)
+		} else {
+	            session := ctx.Get(r, "session").(*sessions.Session)
+	            delete(session.Values, "id")
+	            delete(session.Values, "RequireOTP")
+	            Flash(w, r, "danger", "Invalid OTP")
+	            session.Save(r, w)
+	            http.Redirect(w, r, "/login", http.StatusFound)
+		}
+        }
+}
+
 
 // Logout destroys the current user session
 func (as *AdminServer) Logout(w http.ResponseWriter, r *http.Request) {
