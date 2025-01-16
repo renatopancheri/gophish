@@ -74,6 +74,11 @@ func (as *Server) Users(w http.ResponseWriter, r *http.Request) {
 			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
 			return
 		}
+		for key, _ := range us {
+                        if us[key].TotpSecret != "" {
+				us[key].TotpSecret = "true"
+			}
+		}
 		JSONResponse(w, us, http.StatusOK)
 		return
 	case r.Method == "POST":
@@ -102,6 +107,9 @@ func (as *Server) Users(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
 			return
+		}
+		if ur.TotpSecret == "unset" {
+			ur.TotpSecret = ""
 		}
 		user := models.User{
 			Username:               ur.Username,
@@ -148,6 +156,9 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 	}
 	switch {
 	case r.Method == "GET":
+                if existingUser.TotpSecret != "" {
+		        existingUser.TotpSecret = "true"
+		}
 		JSONResponse(w, existingUser, http.StatusOK)
 	case r.Method == "DELETE":
 		err = models.DeleteUser(id)
@@ -218,8 +229,11 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 			}
 			existingUser.Hash = hash
 		}
-		// Set TOTP Secret only if the user changed it, same as for passowrd (see comment above)
-		if ur.TotpSecret != "" {
+		// unset TOTP Secret if the value is "unset";
+		// Set TOTP Secret only if the user changed it, same as for password (see comment above)
+		if ur.TotpSecret == "unset" {
+			existingUser.TotpSecret = ""
+		} else if ur.TotpSecret != "" {
                     existingUser.TotpSecret = ur.TotpSecret
                 }
 		existingUser.AccountLocked = ur.AccountLocked
@@ -227,6 +241,9 @@ func (as *Server) User(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			JSONResponse(w, models.Response{Success: false, Message: err.Error()}, http.StatusInternalServerError)
 			return
+		}
+		if existingUser.TotpSecret != "" {
+                	existingUser.TotpSecret = "true"
 		}
 		JSONResponse(w, existingUser, http.StatusOK)
 	}

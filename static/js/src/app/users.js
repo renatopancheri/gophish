@@ -57,9 +57,10 @@ const dismiss = () => {
 }
 
 const edit = (id) => {
-    $("#username").attr("disabled", false);
-    $("#totp_enabled").prop("checked", false);
-    genqrcode()
+    $("#username").attr("disabled", false)
+    $("#totp_enabled").prop("checked", false)
+    document.getElementById("qr-code").innerHTML = ""
+    document.getElementById("totp_secret").value = ""
     $("#modalSubmit").unbind('click').click(() => {
         save(id)
     })
@@ -76,6 +77,7 @@ const edit = (id) => {
                 $("#role").val(user.role.slug)
                 $("#role").trigger("change")
                 $("#force_password_change_checkbox").prop('checked', user.password_change_required)
+                $("#totp_enabled").prop('checked', user.totp_secret == "true")
                 $("#account_locked_checkbox").prop('checked', user.account_locked)
                 if (user.username == "admin") {
                     $("#username").attr("disabled", true);
@@ -234,8 +236,8 @@ const load = () => {
 }
 
 const genqrcode = () => {
-    let checkBox = document.getElementById("totp_enabled");
-    if (checkBox.checked == true){
+//    let checkBox = document.getElementById("totp_enabled");
+//    if (checkBox.checked == true){
         var userText = document.getElementById("username").value
 	if (userText = '') {
 	    userText = 'user'
@@ -273,10 +275,21 @@ const genqrcode = () => {
             link.click();
 	}
         qrCanvas.onclick = download
+//    }
+//    else {
+//        document.getElementById("qr-code").innerHTML = "";
+//	document.getElementById("totp_secret").value = "unset"
+//    }
+}
+
+const switchTotp = (checked) => {
+    console.log(checked)
+    if (checked == true){
+        genqrcode()
     }
     else {
         document.getElementById("qr-code").innerHTML = "";
-	document.getElementById("totp_secret").value = ""
+	document.getElementById("totp_secret").value = "unset"
     }
 }
 
@@ -320,6 +333,6 @@ $(document).ready(function () {
         impersonate($(this).attr('data-user-id'))
     })
     $("#totp_enabled").on('click', function () {
-        genqrcode()
+        switchTotp($(this).is(":checked"))
     })
 });
